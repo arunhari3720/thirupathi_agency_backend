@@ -4,6 +4,78 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 // MASTER REGISTER
+// exports.masterRegister = async (req, res) => {
+//   try {
+//     const { name, email, phoneNo, password, setupSecret } = req.body;
+
+//     if (!name || !email || !password || !setupSecret) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Required fields are missing",
+//       });
+//     }
+
+//     // Verify master setup secret
+//     if (setupSecret !== process.env.MASTER_REGISTER_SECRET) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Invalid registration permission",
+//       });
+//     }
+
+//     // Allow only initial master creation through this endpoint
+//     const masterExists = await User.exists({ userType: "master" });
+
+//     if (masterExists) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "Master account already exists",
+//       });
+//     }
+
+//     const existingUser = await User.findOne({
+//       email: email.toLowerCase(),
+//     });
+
+//     if (existingUser) {
+//       return res.status(409).json({
+//         success: false,
+//         message: "Email already registered",
+//       });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, 12);
+
+//     const master = await User.create({
+//       name,
+//       email,
+//       phoneNo: phoneNo || null,
+//       password: hashedPassword,
+//       provider: "email",
+//       userType: "master",
+//     });
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Master registered successfully",
+//       master: {
+//         id: master._id,
+//         name: master.name,
+//         email: master.email,
+//         userType: master.userType,
+//       },
+//     });
+
+//   } catch (error) {
+//     console.error("Master Register Error:", error);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Master registration failed",
+//     });
+//   }
+// };
+// MASTER REGISTER
 exports.masterRegister = async (req, res) => {
   try {
     const { name, email, phoneNo, password, setupSecret } = req.body;
@@ -23,19 +95,9 @@ exports.masterRegister = async (req, res) => {
       });
     }
 
-    // Allow only initial master creation through this endpoint
-    const masterExists = await User.exists({ userType: "master" });
+    const normalizedEmail = email.toLowerCase().trim();
 
-    if (masterExists) {
-      return res.status(403).json({
-        success: false,
-        message: "Master account already exists",
-      });
-    }
-
-    const existingUser = await User.findOne({
-      email: email.toLowerCase(),
-    });
+    const existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {
       return res.status(409).json({
@@ -48,7 +110,7 @@ exports.masterRegister = async (req, res) => {
 
     const master = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       phoneNo: phoneNo || null,
       password: hashedPassword,
       provider: "email",
@@ -65,8 +127,15 @@ exports.masterRegister = async (req, res) => {
         userType: master.userType,
       },
     });
-
   } catch (error) {
+    // two requests with the same email at the same time
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "Email already registered",
+      });
+    }
+
     console.error("Master Register Error:", error);
 
     return res.status(500).json({
@@ -75,7 +144,6 @@ exports.masterRegister = async (req, res) => {
     });
   }
 };
-
 
 // MASTER LOGIN
 exports.masterLogin = async (req, res) => {
