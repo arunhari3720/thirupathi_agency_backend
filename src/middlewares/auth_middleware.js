@@ -50,3 +50,43 @@ exports.verifyMaster = (req, res, next) => {
 
   next();
 };
+ exports.guestCheckoutAuth = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "Checkout verification required",
+      });
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    const decoded = jwt.verify(
+      token,
+      process.env.CHECKOUT_JWT_SECRET
+    );
+
+    if (
+      !decoded.email ||
+      !["new_guest", "existing_guest"].includes(decoded.type)
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid checkout token",
+      });
+    }
+
+    req.guest = decoded;
+
+    next();
+
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: "Checkout session expired. Verify email again.",
+    });
+  }
+};
+
